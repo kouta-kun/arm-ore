@@ -10,6 +10,7 @@ use crate::emulator::EmulatorFeature;
 pub struct DynamicMemoryAllocations {
     memory_base: u64,
     hook: uc_hook,
+    allocations: Vec<(u32, u32)>,
 }
 
 impl DynamicMemoryAllocations {
@@ -22,6 +23,7 @@ impl DynamicMemoryAllocations {
         DynamicMemoryAllocations {
             memory_base: membase,
             hook: null_mut(),
+            allocations: Vec::new(),
         }
     }
 }
@@ -36,16 +38,17 @@ fn align(value: u32, align: u32) -> u32 {
 
 impl EmulatorFeature for DynamicMemoryAllocations {
     fn init(&mut self, emulator: &mut UnicornHandle) -> Result<(), String> {
-        let mut vector = Box::new(Vec::<(u32, u32)>::new());
         let membase = self.memory_base;
-        let hook = emulator.add_intr_hook(move |mut em, _syscall| {
+        let vptr: *mut Vec<(u32, u32)> = &mut self.allocations;
+        let hook = emulator.add_intr_hook(move |mut em, _syscall| unsafe {
+            let vector = &mut *vptr;
             let syscall = em.reg_read_i32(RegisterARM::R7 as i32).unwrap();
             if syscall == 0x60 {
                 let mut allocation_size = em.reg_read_i32(RegisterARM::R1 as i32).unwrap();
                 allocation_size = align(allocation_size as u32, 12) as i32;
 
                 let mut base =
-                    if vector.len() > 0 {
+                    if (vector).len() > 0 {
                         let (b, sz) = vector.iter().max_by_key(|(base, _sz)| base).unwrap();
                         (b + sz) as u64
                     } else { membase };
@@ -62,7 +65,11 @@ impl EmulatorFeature for DynamicMemoryAllocations {
     }
 
     fn stop(&mut self, _emulator: &mut UnicornHandle) -> Result<(), String> {
-        todo!()
+        _emulator.remove_hook(self.hook).unwrap();
+        self.hook = null_mut();
+        self.allocations.iter().for_each(|(addr, size)| _emulator.mem_unmap(*addr as u64, *size as size_t).unwrap());
+        self.allocations.clear();
+        Ok(())
     }
 
     fn as_any(&mut self) -> &mut dyn Any {

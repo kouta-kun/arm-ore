@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::rc::Rc;
 use xmas_elf::dynamic::Tag::Hash;
-use crate::filesystem::{Drive, EmulatorDrive};
+use crate::filesystem::Drive;
 
 pub trait EmulatorFeature {
     fn init(&mut self, emulator: &mut UnicornHandle) -> Result<(), String>;
@@ -67,7 +67,7 @@ pub fn load_executable(emu: &mut UnicornHandle, file_io: &Drive) -> Result<(u64,
     let symbol_data = symbol_header.get_data(&elf_file).unwrap();
 
     let main_idx = if let sections::SectionData::SymbolTable32(data) = symbol_data {
-        let main_entry: &Entry32 = data.iter().find(|e| e.get_name(&elf_file).unwrap().eq("main")).unwrap();
+        let main_entry: &Entry32 = data.iter().find(|e| e.get_name(&elf_file).unwrap().eq("_start")).unwrap();
 
         main_entry.value()
     } else {

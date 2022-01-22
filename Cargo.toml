@@ -2,6 +2,8 @@
 name = "armchine-rs"
 version = "0.1.0"
 edition = "2021"
+authors = ["kouta-kun <darkfm@vera.com.uy>"]
+description = "Armchine is a fantasy 5th gen-ish console based on an ARM946 system."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -10,5 +12,7 @@ unicorn = { path = "unicorn/bindings/rust", version = "1.0.0" }
 libc = "0.2"
 capstone = "0.6.0"
 xmas-elf = "0.8"
-iso9660 = {path = "iso9660-rs"}
+iso9660 = { path = "iso9660-rs" }
 clap = { version = "3.0.10", features = ["derive"] }
+euc = "0.5.3"
+minifb = "0.20"

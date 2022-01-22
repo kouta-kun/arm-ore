@@ -4,25 +4,26 @@
 #include "stdlib/memalloc.hpp"
 #include "stdlib/console.hpp"
 #include "stdlib/fileio.hpp"
-
-char * file_path = "./README.TXT";
-
-size_t strlen(char* str) {
-  size_t sz = 0;
-  while(*(str++))sz++;
-  return sz;
-}
+#include "stdlib/graphics.hpp"
 
 extern "C"
-void main() {
-  BitmapAllocator ba(64, 1024*1024*64);
+int main() {
+  Vertex triangle[] = {
+      {-1.0, -1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0},
+      {1.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0},
+      {0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0},
+  };
 
-  size_t fs = file_size(file_path);
 
-  char *file_content = reinterpret_cast<char*>(ba.allocate(fs+1));
+  size_t frame = 0;
 
-  read_file(file_path, 0, fs, reinterpret_cast<uint8_t*>(file_content));
+  while(true) {
+      frame++;
 
-  file_content[fs] = 0;
-  println(file_content);
+      triangle[0].r = float(frame%120)/120.0f;
+      triangle[1].g = float(frame%120)/120.0f;
+      triangle[2].b = float(frame%120)/120.0f;
+
+      submit_drawlist(triangle, 3);
+  }
 }

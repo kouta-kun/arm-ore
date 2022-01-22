@@ -9,6 +9,7 @@ use unicorn::unicorn_const::Arch::ARM;
 use unicorn::unicorn_const::{HookType, Mode, Permission, uc_error};
 use xmas_elf::{ElfFile, header, sections};
 use std::fs;
+use std::io::Write;
 use std::ops::DerefMut;
 use std::ptr::{null, null_mut};
 use capstone::arch::arm::ArchMode;
@@ -20,19 +21,25 @@ use xmas_elf::symbol_table::{Entry, Entry32};
 use crate::emulator::{EmulatorFeature};
 use clap::{Parser};
 use clap;
+use euc::{Pipeline, rasterizer};
 use crate::filesystem::Drive;
+use crate::gpu::Triangle;
 
 mod emulator;
 mod filesystem;
 mod features;
 mod console;
 mod dynmemory;
+mod gpu;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about)]
 struct Arguments {
     #[clap(long)]
     iso: String,
+
+    #[clap(short, long)]
+    debug: bool,
 }
 
 fn main() {
@@ -57,6 +64,9 @@ fn main() {
     let mut dynmem = dynmemory::DynamicMemoryAllocations::new(mem_sz);
     dynmem.init(&mut unicorn_handle).unwrap();
 
+    let mut graph = gpu::GPUFeature::new();
+    graph.init(&mut unicorn_handle).unwrap();
+
     unicorn_handle.add_intr_hook(|mut _emu, _syscall| _emu.emu_stop().unwrap()).unwrap();
 
 
@@ -64,26 +74,45 @@ fn main() {
         unicorn_handle.reg_write(RegisterARM::SP as i32, 0x10000).unwrap();
         unicorn_handle.reg_write(RegisterARM::PC as i32, main_idx).unwrap();
 
-        loop {
+        while graph.window.is_open() {
             let pc = unicorn_handle.reg_read(RegisterARM::PC as i32).unwrap();
 
-            if let Err(_e) = unicorn_handle.emu_start(pc, mem_sz, 0, 0) {
-                // print_disassembly(&mut unicorn_handle, mem_sz, main_idx, e)
+            let t1 = std::time::Instant::now();
+            let e = unicorn_handle.emu_start(pc, mem_sz, 0, 0);
+            if args.debug {
+                print_disassembly(&mut unicorn_handle, mem_sz, main_idx, e);
+            }
+            if e.is_err() {
                 break;
             }
+            let t2 = std::time::Instant::now();
+
+            let dt = t2.duration_since(t1).as_millis();
+            print!("Execution time: {}; ", dt);
+
+            let t1 = std::time::Instant::now();
+            graph.update();
+            let t2 = std::time::Instant::now();
+            let dt = t2.duration_since(t1).as_millis();
+
+            print!("Rendering and update time: {};\r", dt);
+            std::io::stdout().flush().unwrap();
         }
     }
+    graph.stop(&mut unicorn_handle).unwrap();
     console_io.stop(&mut unicorn_handle).unwrap();
     file_io.stop(&mut unicorn_handle).unwrap();
     dynmem.stop(&mut unicorn_handle).unwrap();
 }
 
-fn print_disassembly(unicorn_handle: &mut UnicornHandle, mem_sz: u64, main_idx: u64, e: uc_error) {
+fn print_disassembly(unicorn_handle: &mut UnicornHandle, mem_sz: u64, main_idx: u64, e: Result<(), uc_error>) {
     let pc = unicorn_handle.reg_read_i32(RegisterARM::PC as i32).unwrap();
-    println!("failed because {:?}", e);
-    println!("failed at {:#x}", pc);
+    if let Err(error) = e {
+        println!("failed because {:?}", error);
+        println!("failed at {:#x}", pc);
+    }
     let capstone = capstone::Capstone::new().arm().mode(ArchMode::Arm).build().unwrap();
-    let instructions = capstone.disasm_all(unicorn_handle.mem_read_as_vec(main_idx, mem_sz as usize).unwrap().as_slice(), 0).unwrap();
+    let instructions = capstone.disasm_all(unicorn_handle.mem_read_as_vec(main_idx, (mem_sz - main_idx) as usize).unwrap().as_slice(), pc as u64).unwrap();
     for i in instructions.iter() {
         println!("{:#x}: {} {}", i.address(), i.mnemonic().unwrap(), i.op_str().unwrap());
     }
