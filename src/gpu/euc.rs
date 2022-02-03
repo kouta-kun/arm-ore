@@ -123,12 +123,13 @@ impl EucGPUBackend {
     }
 
     fn draw_vertex(&mut self) {
-        self.buffer.as_mut().fill(0);
         if let Some(vx) = &self.triangles {
+            self.buffer.as_mut().fill(0);
             Triangle.draw::<rasterizer::Triangles<(f32, )>, _>(vx,
                                                                &mut self.buffer,
                                                                None);
             self.window.update_with_buffer(self.buffer.as_ref(), 800, 600).unwrap();
+            print!("Vertices: {}", vx.len());
             self.triangles = None;
         }
     }

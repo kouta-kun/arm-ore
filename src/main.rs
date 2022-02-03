@@ -22,6 +22,7 @@ use crate::emulator::{EmulatorFeature};
 use clap::{Parser};
 use clap;
 use crate::filesystem::Drive;
+use crate::gpu::feature::GPUFeature;
 
 mod emulator;
 mod filesystem;
@@ -40,6 +41,16 @@ struct Arguments {
     debug: bool,
 }
 
+fn get_features(args: &Arguments, mem_sz: u64) -> Vec<Box<dyn EmulatorFeature>> {
+    let mut features = Vec::<Box<dyn EmulatorFeature>>::new();
+    features.push(Box::new(console::ConsoleIO::new()));
+    features.push(Box::new(filesystem::EmulatorDrive::new(String::from(&args.iso))));
+    features.push(Box::new(dynmemory::DynamicMemoryAllocations::new(mem_sz)));
+    #[cfg(any(feature="euc-backend"))]
+        features.push(gpu::create_feature(None));
+    features
+}
+
 fn main() {
     let args: Arguments = Arguments::parse();
 
@@ -47,27 +58,22 @@ fn main() {
     let mut unicorn_handle: UnicornHandle = Unicorn::borrow(
         &mut unicorn);
 
+
     let (mem_sz, main_idx) = {
         let drive = Drive::new(args.iso.as_ref());
 
         emulator::load_executable(&mut unicorn_handle, &drive).unwrap()
     };
+    let mut features = get_features(&args, mem_sz);
 
-    let mut console_io = console::ConsoleIO::new();
-    console_io.init(&mut unicorn_handle).unwrap();
+    for feat in &mut features {
+        feat.init(&mut unicorn_handle).unwrap();
+    }
 
-    let mut file_io = filesystem::EmulatorDrive::new(String::from(args.iso));
-    file_io.init(&mut unicorn_handle).unwrap();
 
-    let mut dynmem = dynmemory::DynamicMemoryAllocations::new(mem_sz);
-    dynmem.init(&mut unicorn_handle).unwrap();
-
-    #[cfg(any(feature="euc-backend"))]
-    let mut graph = gpu::create_feature(None);
 
 
     unicorn_handle.add_intr_hook(|mut _emu, _syscall| _emu.emu_stop().unwrap()).unwrap();
-
 
     {
         unicorn_handle.reg_write(RegisterARM::SP as i32, 0x10000).unwrap();
@@ -79,37 +85,42 @@ fn main() {
 
             let t1 = std::time::Instant::now();
             let e = unicorn_handle.emu_start(pc, mem_sz, 0, 0);
+            let t2 = std::time::Instant::now();
             if args.debug {
                 print_disassembly(&mut unicorn_handle, mem_sz, main_idx, e);
             }
             if e.is_err() {
                 break;
             }
-            let t2 = std::time::Instant::now();
 
             let dt = t2.duration_since(t1).as_millis();
             print!("Execution time: {}; ", dt);
 
             #[cfg(any(feature="euc-backend"))] {
-                let t1 = std::time::Instant::now();
-                graph.update();
-                must_loop = graph.is_open();
-                let t2 = std::time::Instant::now();
-                let dt = t2.duration_since(t1).as_millis();
+                for feat in &mut features {
+                    if feat.name().eq("GPUFeature") {
+                        let feat = feat.as_any().downcast_mut::<GPUFeature>().unwrap();
+                        let t1 = std::time::Instant::now();
+                        feat.update();
+                        must_loop = feat.is_open();
+                        let t2 = std::time::Instant::now();
+                        let dt = t2.duration_since(t1).as_millis();
 
-                print!("Rendering and update time: {};", dt);
+                        print!("Rendering and update time: {};", dt);
+                    }
+                }
             }
             print!("\r");
             std::io::stdout().flush().unwrap();
         }
     }
 
-    #[cfg(any(feature="euc-backend"))]
-    graph.stop(&mut unicorn_handle).unwrap();
 
-    console_io.stop(&mut unicorn_handle).unwrap();
-    file_io.stop(&mut unicorn_handle).unwrap();
-    dynmem.stop(&mut unicorn_handle).unwrap();
+    for mut feat in features {
+        feat.stop(&mut unicorn_handle).unwrap();
+    }
+
+
 }
 
 fn print_disassembly(unicorn_handle: &mut UnicornHandle, mem_sz: u64, main_idx: u64, e: Result<(), uc_error>) {

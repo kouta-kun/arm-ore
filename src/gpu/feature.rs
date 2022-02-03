@@ -86,10 +86,10 @@ impl EmulatorFeature for GPUFeature {
     }
 
     fn as_any(&mut self) -> &mut dyn Any {
-        todo!()
+        self
     }
 
     fn name(&self) -> String {
-        todo!()
+        String::from("GPUFeature")
     }
 }
