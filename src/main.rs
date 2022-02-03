@@ -46,7 +46,7 @@ fn get_features(args: &Arguments, mem_sz: u64) -> Vec<Box<dyn EmulatorFeature>> 
     features.push(Box::new(console::ConsoleIO::new()));
     features.push(Box::new(filesystem::EmulatorDrive::new(String::from(&args.iso))));
     features.push(Box::new(dynmemory::DynamicMemoryAllocations::new(mem_sz)));
-    #[cfg(any(feature="euc-backend"))]
+    #[cfg(feature = "gpu-feature")]
         features.push(gpu::create_feature(None));
     features
 }
@@ -96,7 +96,7 @@ fn main() {
             let dt = t2.duration_since(t1).as_millis();
             print!("Execution time: {}; ", dt);
 
-            #[cfg(any(feature="euc-backend"))] {
+            #[cfg(feature = "gpu-feature")] {
                 for feat in &mut features {
                     if feat.name().eq("GPUFeature") {
                         let feat = feat.as_any().downcast_mut::<GPUFeature>().unwrap();

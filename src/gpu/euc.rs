@@ -105,7 +105,6 @@ impl Pipeline for Triangle {
     }
 }
 
-#[cfg(feature="euc-backend")]
 pub struct EucGPUBackend {
     window: minifb::Window,
     triangles: Option<Vec<<Triangle as Pipeline>::Vertex>>,

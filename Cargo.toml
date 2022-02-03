@@ -27,6 +27,10 @@ wgpu = { version = "0.12", optional = true }
 pollster = { version = "0.2", optional = true }
 
 [features]
-euc-backend = ["euc", "minifb"]
+gpu-feature = []
 
-default = ["euc-backend"]
+euc-backend = ["euc", "minifb", "gpu-feature"]
+
+wgpu-backend = ["image", "winit", "cgmath", "env_logger", "log", "wgpu", "pollster", "gpu-feature"]
+
+default = ["wgpu-backend"]
