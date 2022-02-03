@@ -21,9 +21,7 @@ use xmas_elf::symbol_table::{Entry, Entry32};
 use crate::emulator::{EmulatorFeature};
 use clap::{Parser};
 use clap;
-use euc::{Pipeline, rasterizer};
 use crate::filesystem::Drive;
-use crate::gpu::Triangle;
 
 mod emulator;
 mod filesystem;
@@ -64,8 +62,9 @@ fn main() {
     let mut dynmem = dynmemory::DynamicMemoryAllocations::new(mem_sz);
     dynmem.init(&mut unicorn_handle).unwrap();
 
-    let mut graph = gpu::GPUFeature::new();
-    graph.init(&mut unicorn_handle).unwrap();
+    #[cfg(any(feature="euc-backend"))]
+    let mut graph = gpu::create_feature(None);
+
 
     unicorn_handle.add_intr_hook(|mut _emu, _syscall| _emu.emu_stop().unwrap()).unwrap();
 
@@ -73,8 +72,9 @@ fn main() {
     {
         unicorn_handle.reg_write(RegisterARM::SP as i32, 0x10000).unwrap();
         unicorn_handle.reg_write(RegisterARM::PC as i32, main_idx).unwrap();
+        let mut must_loop = true;
 
-        while graph.window.is_open() {
+        while must_loop {
             let pc = unicorn_handle.reg_read(RegisterARM::PC as i32).unwrap();
 
             let t1 = std::time::Instant::now();
@@ -90,16 +90,23 @@ fn main() {
             let dt = t2.duration_since(t1).as_millis();
             print!("Execution time: {}; ", dt);
 
-            let t1 = std::time::Instant::now();
-            graph.update();
-            let t2 = std::time::Instant::now();
-            let dt = t2.duration_since(t1).as_millis();
+            #[cfg(any(feature="euc-backend"))] {
+                let t1 = std::time::Instant::now();
+                graph.update();
+                must_loop = graph.is_open();
+                let t2 = std::time::Instant::now();
+                let dt = t2.duration_since(t1).as_millis();
 
-            print!("Rendering and update time: {};\r", dt);
+                print!("Rendering and update time: {};", dt);
+            }
+            print!("\r");
             std::io::stdout().flush().unwrap();
         }
     }
+
+    #[cfg(any(feature="euc-backend"))]
     graph.stop(&mut unicorn_handle).unwrap();
+
     console_io.stop(&mut unicorn_handle).unwrap();
     file_io.stop(&mut unicorn_handle).unwrap();
     dynmem.stop(&mut unicorn_handle).unwrap();

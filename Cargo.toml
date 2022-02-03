@@ -14,5 +14,19 @@ capstone = "0.6.0"
 xmas-elf = "0.8"
 iso9660 = { path = "iso9660-rs" }
 clap = { version = "3.0.10", features = ["derive"] }
-euc = "0.5.3"
-minifb = "0.20"
+
+euc = { version = "0.5.3", optional = true }
+minifb = { version = "0.20", optional = true }
+
+image = { version = "0.23", optional = true }
+winit = { version = "0.26", optional = true }
+cgmath = { version = "0.18", optional = true }
+env_logger = { version = "0.9", optional = true }
+log = { version = "0.4", optional = true }
+wgpu = { version = "0.12", optional = true }
+pollster = { version = "0.2", optional = true }
+
+[features]
+euc-backend = ["euc", "minifb"]
+
+default = ["euc-backend"]
