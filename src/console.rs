@@ -6,6 +6,9 @@ use std::any::Any;
 use unicorn::ffi::uc_hook;
 use crate::features::EmulatorFeature;
 
+/// Console Text IO
+///
+/// This feature provides memory hooks to write to emulator stdout
 pub struct ConsoleIO {
     hook: uc_hook,
 }
@@ -16,6 +19,9 @@ impl ConsoleIO {
     }
 }
 
+/// | Memory address | Parameters | Description |
+/// | -------------- | ---------- | ----------- |
+/// | 0xFF000 | byte | Writes byte to stdout |
 impl EmulatorFeature for ConsoleIO {
     fn init(&mut self, emulator: &mut UnicornHandle) -> Result<(), String> {
         emulator.mem_map(0xFF000, 4096 as size_t, Permission::ALL).unwrap();

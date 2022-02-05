@@ -1,7 +1,7 @@
 use std::any::Any;
 use unicorn::{RegisterARM, Unicorn, UnicornHandle};
 use libc::size_t;
-use unicorn::unicorn_const::{HookType, Mode, Permission};
+use unicorn::unicorn_const::{HookType, Mode, Permission, uc_error};
 use std::ptr::null_mut;
 use unicorn::unicorn_const::Arch::ARM;
 use std::fs;
@@ -15,6 +15,8 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::rc::Rc;
 use xmas_elf::dynamic::Tag::Hash;
+use capstone::arch::arm::ArchMode;
+use capstone::arch::BuildsCapstone;
 use crate::filesystem::Drive;
 
 pub fn create_emulator() -> Unicorn {
@@ -67,4 +69,17 @@ pub fn load_executable(emu: &mut UnicornHandle, file_io: &Drive) -> Result<(u64,
         return Err(());
     };
     Ok((mem_sz, main_idx))
+}
+
+pub fn print_disassembly(unicorn_handle: &mut UnicornHandle, mem_sz: u64, main_idx: u64, e: Result<(), uc_error>) {
+    let pc = unicorn_handle.reg_read_i32(RegisterARM::PC as i32).unwrap();
+    if let Err(error) = e {
+        println!("failed because {:?}", error);
+        println!("failed at {:#x}", pc);
+    }
+    let capstone = capstone::Capstone::new().arm().mode(ArchMode::Arm).build().unwrap();
+    let instructions = capstone.disasm_all(unicorn_handle.mem_read_as_vec(main_idx, (mem_sz - main_idx) as usize).unwrap().as_slice(), pc as u64).unwrap();
+    for i in instructions.iter() {
+        println!("{:#x}: {} {}", i.address(), i.mnemonic().unwrap(), i.op_str().unwrap());
+    }
 }

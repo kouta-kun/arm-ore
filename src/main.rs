@@ -1,4 +1,18 @@
+//! ARMChine_rs is a fantasy 5gen-ish console based on an ARM946 CPU. The emulator
+//! (which is the reference implementation... for now 😊 ) is developed in a
+//! [Modular manner](features::EmulatorFeature).
+//!
+//! There is an [Optical disk-like Filesystem](filesystem::EmulatorDrive),
+//! a [3D Rasterizer](gpu::feature::GPUFeature) with multiple backends,
+//! and of course [Dynamic memory](dynmemory::DynamicMemoryAllocations)!
+//!
+//! All of these are subject to change over the course of the initial development. Have fun!
+
+
 #![allow(unused_imports)]
+
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 use std::borrow::{Borrow, BorrowMut};
 use std::cmp::max;
@@ -18,9 +32,9 @@ use capstone::Capstone;
 use libc::{c_void, link, size_t};
 use unicorn::ffi::uc_hook;
 use xmas_elf::symbol_table::{Entry, Entry32};
-use crate::emulator::{EmulatorFeature};
-use clap::{Parser};
-use clap;
+use configuration::Arguments;
+use features::EmulatorFeature;
+use clap::Parser;
 use crate::filesystem::Drive;
 use crate::gpu::feature::GPUFeature;
 
@@ -30,28 +44,11 @@ mod features;
 mod console;
 mod dynmemory;
 mod gpu;
-
-#[derive(Parser, Debug)]
-#[clap(author, version, about)]
-struct Arguments {
-    #[clap(long)]
-    iso: String,
-
-    #[clap(short, long)]
-    debug: bool,
-}
-
-fn get_features(args: &Arguments, mem_sz: u64) -> Vec<Box<dyn EmulatorFeature>> {
-    let mut features = Vec::<Box<dyn EmulatorFeature>>::new();
-    features.push(Box::new(console::ConsoleIO::new()));
-    features.push(Box::new(filesystem::EmulatorDrive::new(String::from(&args.iso))));
-    features.push(Box::new(dynmemory::DynamicMemoryAllocations::new(mem_sz)));
-    #[cfg(feature = "gpu-feature")]
-        features.push(gpu::create_feature(None));
-    features
-}
+mod input;
+mod configuration;
 
 fn main() {
+
     let args: Arguments = Arguments::parse();
 
     let mut unicorn = emulator::create_emulator();
@@ -64,13 +61,11 @@ fn main() {
 
         emulator::load_executable(&mut unicorn_handle, &drive).unwrap()
     };
-    let mut features = get_features(&args, mem_sz);
+    let mut features = configuration::get_features(&args, mem_sz);
 
     for feat in &mut features {
         feat.init(&mut unicorn_handle).unwrap();
     }
-
-
 
 
     unicorn_handle.add_intr_hook(|mut _emu, _syscall| _emu.emu_stop().unwrap()).unwrap();
@@ -87,7 +82,7 @@ fn main() {
             let e = unicorn_handle.emu_start(pc, mem_sz, 0, 0);
             let t2 = std::time::Instant::now();
             if args.debug {
-                print_disassembly(&mut unicorn_handle, mem_sz, main_idx, e);
+                emulator::print_disassembly(&mut unicorn_handle, mem_sz, main_idx, e);
             }
             if e.is_err() {
                 break;
@@ -118,20 +113,5 @@ fn main() {
 
     for mut feat in features {
         feat.stop(&mut unicorn_handle).unwrap();
-    }
-
-
-}
-
-fn print_disassembly(unicorn_handle: &mut UnicornHandle, mem_sz: u64, main_idx: u64, e: Result<(), uc_error>) {
-    let pc = unicorn_handle.reg_read_i32(RegisterARM::PC as i32).unwrap();
-    if let Err(error) = e {
-        println!("failed because {:?}", error);
-        println!("failed at {:#x}", pc);
-    }
-    let capstone = capstone::Capstone::new().arm().mode(ArchMode::Arm).build().unwrap();
-    let instructions = capstone.disasm_all(unicorn_handle.mem_read_as_vec(main_idx, (mem_sz - main_idx) as usize).unwrap().as_slice(), pc as u64).unwrap();
-    for i in instructions.iter() {
-        println!("{:#x}: {} {}", i.address(), i.mnemonic().unwrap(), i.op_str().unwrap());
     }
 }

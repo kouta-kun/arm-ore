@@ -5,6 +5,9 @@ use unicorn::ffi::uc_hook;
 use crate::features::EmulatorFeature;
 use crate::gpu::base::{GPUBackend, Vert};
 
+/// Video output
+///
+/// This feature provides syscalls to draw 3D graphics on a 800x600 screen
 pub struct GPUFeature {
     hook: uc_hook,
     backend: Box<dyn GPUBackend>
@@ -52,6 +55,10 @@ impl GPUFeature {
     }
 }
 
+/// | Syscall | Parameters | Description |
+/// | ------- | ---------- | ----------- |
+/// | 0x160 | Vertex*: address of vertex list to copy | Copies vertices from array into the drawing backend |
+/// | 0x161 | None | Currently does nothing. It's supposed to use as a sort of vsync without having to copy new vertices |
 impl EmulatorFeature for GPUFeature {
     fn init(&mut self, emulator: &mut UnicornHandle) -> Result<(), String> {
         let gpuptr: *mut GPUFeature = self;

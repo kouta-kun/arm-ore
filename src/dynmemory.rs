@@ -7,6 +7,10 @@ use unicorn::ffi::uc_hook;
 use unicorn::unicorn_const::Permission;
 use crate::features::EmulatorFeature;
 
+/// Allows dynamic allocation of memory
+///
+/// This feature provides syscalls that dynamically allocate and map
+/// memory for usage in the emulated system
 pub struct DynamicMemoryAllocations {
     memory_base: u64,
     hook: uc_hook,
@@ -36,6 +40,9 @@ fn align(value: u32, align: u32) -> u32 {
     b << align
 }
 
+/// | Syscall | Parameters | Description |
+/// | ------- | ---------- | ----------- |
+/// | 0x60 | size_t: allocation size | Allocates a memory block of provided size (aligned to 4096) above the executable memory_base or highest allocation, also aligned to 4096 |
 impl EmulatorFeature for DynamicMemoryAllocations {
     fn init(&mut self, emulator: &mut UnicornHandle) -> Result<(), String> {
         let membase = self.memory_base;

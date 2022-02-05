@@ -88,6 +88,9 @@ impl Drive {
     }
 }
 
+/// Allows read-only access to an ISO file
+///
+/// This feature provides syscalls to read files from a disc-like drive.
 pub struct EmulatorDrive {
     path: String,
     hook: uc_hook,
@@ -163,9 +166,14 @@ impl EmulatorDrive {
     }
 }
 
+/// | Syscall | Parameters | Description |
+/// | ------- | ---------- | ----------- |
+/// | 0x0 | No parameters | File count in drive |
+/// | 0x1 | int: index of file | Filename length of file i in drive |
+/// | 0x2 | int: index of file, int: index in filename | Filename character n of file i in drive |
+/// | 0x3 | char*: address to filepath string | File size of file in the address |
+/// | 0x4 | char*: address to filepath string, int: offset in file, int: byte count, uint8_t*: output address | Read (offset, offset+c) bytes from file at filepath into the output address |
 impl EmulatorFeature for EmulatorDrive {
-
-
     fn init(&mut self, emulator: &mut UnicornHandle) -> Result<(), String> {
         let mut drive = Drive::new(self.path.as_ref());
         let syscall = move |mut em: UnicornHandle, _syscall: u32| {
