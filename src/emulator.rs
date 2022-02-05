@@ -17,13 +17,6 @@ use std::rc::Rc;
 use xmas_elf::dynamic::Tag::Hash;
 use crate::filesystem::Drive;
 
-pub trait EmulatorFeature {
-    fn init(&mut self, emulator: &mut UnicornHandle) -> Result<(), String>;
-    fn stop(&mut self, emulator: &mut UnicornHandle) -> Result<(), String>;
-    fn as_any(&mut self) -> &mut dyn Any;
-    fn name(&self) -> String;
-}
-
 pub fn create_emulator() -> Unicorn {
     let cpu_mode = Mode::ARM946 | Mode::LITTLE_ENDIAN;
     let unicorn: Unicorn = Unicorn::new(ARM, cpu_mode)

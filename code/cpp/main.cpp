@@ -20,9 +20,9 @@ int main() {
   while(true) {
       frame++;
 
-      triangle[0].r = float(frame%15)/15.0f;
-      triangle[1].g = float(frame%15)/15.0f;
-      triangle[2].b = float(frame%15)/15.0f;
+      triangle[0].r = float(frame%120)/120.0f;
+      triangle[1].g = float(frame%120)/120.0f;
+      triangle[2].b = float(frame%120)/120.0f;
 
       submit_drawlist(triangle, 3);
   }

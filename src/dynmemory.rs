@@ -5,7 +5,7 @@ use libc::size_t;
 use unicorn::{RegisterARM, UnicornHandle};
 use unicorn::ffi::uc_hook;
 use unicorn::unicorn_const::Permission;
-use crate::emulator::EmulatorFeature;
+use crate::features::EmulatorFeature;
 
 pub struct DynamicMemoryAllocations {
     memory_base: u64,

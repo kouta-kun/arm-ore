@@ -1,5 +1,6 @@
 use std::detect::__is_feature_detected::sha;
-use wgpu::include_wgsl;
+use wgpu::{Buffer, Device, include_wgsl};
+use wgpu::util::DeviceExt;
 use winit::dpi::PhysicalSize;
 use winit::event::{ElementState, Event, KeyboardInput, WindowEvent, VirtualKeyCode};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -16,7 +17,9 @@ pub struct WgpuBackend {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
-    render_pipeline: wgpu::RenderPipeline
+    render_pipeline: wgpu::RenderPipeline,
+    vertex_buffer: wgpu::Buffer,
+    vertex_count: usize,
 }
 
 impl WgpuBackend {
@@ -35,16 +38,16 @@ impl WgpuBackend {
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::default(),
             compatible_surface: Some(&surface),
-            force_fallback_adapter: false
+            force_fallback_adapter: false,
         })).unwrap();
 
         let (device, queue) = pollster::block_on(adapter.request_device(
             &wgpu::DeviceDescriptor {
-            features: wgpu::Features::empty(),
-            limits: wgpu::Limits::default(),
-            label: None
-        },
-         None
+                features: wgpu::Features::empty(),
+                limits: wgpu::Limits::default(),
+                label: None,
+            },
+            None,
         )).unwrap();
 
         let config = wgpu::SurfaceConfiguration {
@@ -52,7 +55,7 @@ impl WgpuBackend {
             format: surface.get_preferred_format(&adapter).unwrap(),
             width: width as u32,
             height: height as u32,
-            present_mode: wgpu::PresentMode::Fifo
+            present_mode: wgpu::PresentMode::Fifo,
         };
         surface.configure(&device, &config);
 
@@ -62,8 +65,12 @@ impl WgpuBackend {
         let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
             bind_group_layouts: &[],
-            push_constant_ranges: &[]
+            push_constant_ranges: &[],
         });
+
+
+        let vertex_buffer = Self::vertex_to_buffer(&device, &[]);
+        let vertex_count = 0usize;
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
@@ -71,7 +78,22 @@ impl WgpuBackend {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[]
+                buffers: &[wgpu::VertexBufferLayout {
+                    array_stride: std::mem::size_of::<Vert>() as wgpu::BufferAddress,
+                    step_mode: wgpu::VertexStepMode::Vertex,
+                    attributes: &[
+                        wgpu::VertexAttribute {
+                            offset: 0,
+                            shader_location: 0,
+                            format: wgpu::VertexFormat::Float32x4,
+                        },
+                        wgpu::VertexAttribute {
+                            offset: std::mem::size_of::<[f32;4]>() as wgpu::BufferAddress,
+                            shader_location: 1,
+                            format: wgpu::VertexFormat::Float32x4,
+                        },
+                    ]
+                }],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -79,8 +101,8 @@ impl WgpuBackend {
                 targets: &[wgpu::ColorTargetState {
                     format: config.format,
                     blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL
-                }]
+                    write_mask: wgpu::ColorWrites::ALL,
+                }],
             }),
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -89,18 +111,42 @@ impl WgpuBackend {
                 cull_mode: Some(wgpu::Face::Back),
                 polygon_mode: wgpu::PolygonMode::Fill,
                 unclipped_depth: false,
-                conservative: false
+                conservative: false,
             },
             depth_stencil: None,
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,
-                alpha_to_coverage_enabled: false
+                alpha_to_coverage_enabled: false,
             },
-            multiview: None
+            multiview: None,
         });
 
-        Self {event_loop, window, is_open: true, surface, device, queue, config, size, render_pipeline }
+
+        Self {
+            event_loop,
+            window,
+            is_open: true,
+            surface,
+            device,
+            queue,
+            config,
+            size,
+            render_pipeline,
+            vertex_buffer,
+            vertex_count
+        }
+    }
+
+    fn vertex_to_buffer(device: &Device, vertex: &[Vert]) -> Buffer {
+        let vertex_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Vertex Buffer"),
+                contents: bytemuck::cast_slice(vertex),
+                usage: wgpu::BufferUsages::VERTEX,
+            }
+        );
+        vertex_buffer
     }
 
     fn render(&mut self) {
@@ -123,16 +169,19 @@ impl WgpuBackend {
                             r: 0.0,
                             g: 0.0,
                             b: 0.0,
-                            a: 1.0
+                            a: 1.0,
                         }),
-                        store: true
-                    }
+                        store: true,
+                    },
                 }],
-                depth_stencil_attachment: None
+                depth_stencil_attachment: None,
             });
 
+
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.draw(0..3, 0..1);
+
+            render_pass.draw(0..(self.vertex_count as u32), 0..1);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -141,7 +190,6 @@ impl WgpuBackend {
 }
 
 impl GPUBackend for WgpuBackend {
-
     fn update(&mut self) {
         self.render();
 
@@ -149,8 +197,8 @@ impl GPUBackend for WgpuBackend {
             match event {
                 Event::RedrawEventsCleared => {
                     *control_flow = ControlFlow::Exit;
-                },
-                Event::WindowEvent {ref event, window_id} if window_id == self.window.id() => match event {
+                }
+                Event::WindowEvent { ref event, window_id } if window_id == self.window.id() => match event {
                     WindowEvent::CloseRequested |
                     WindowEvent::KeyboardInput {
                         input: KeyboardInput {
@@ -170,7 +218,9 @@ impl GPUBackend for WgpuBackend {
     }
 
     fn load_vertices(&mut self, vertices: Vec<Vert>) {
-        // todo!()
+        self.vertex_buffer.destroy();
+        self.vertex_buffer = Self::vertex_to_buffer(&self.device, vertices.as_slice());
+        self.vertex_count = vertices.len();
     }
 
     fn is_open(&self) -> bool {

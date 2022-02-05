@@ -2,7 +2,7 @@ use std::ptr::null_mut;
 use unicorn::{RegisterARM, UnicornHandle};
 use std::any::Any;
 use unicorn::ffi::uc_hook;
-use crate::EmulatorFeature;
+use crate::features::EmulatorFeature;
 use crate::gpu::base::{GPUBackend, Vert};
 
 pub struct GPUFeature {

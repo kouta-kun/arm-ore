@@ -4,7 +4,7 @@ use libc::size_t;
 use unicorn::unicorn_const::{HookType, Permission};
 use std::any::Any;
 use unicorn::ffi::uc_hook;
-use crate::EmulatorFeature;
+use crate::features::EmulatorFeature;
 
 pub struct ConsoleIO {
     hook: uc_hook,

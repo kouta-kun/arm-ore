@@ -11,8 +11,9 @@ use std::rc::Rc;
 use capstone::arch::tms320c64x::Tms320c64xMemDisplayType::Register;
 use unicorn::{RegisterARM, UnicornHandle};
 use unicorn::ffi::uc_hook;
-use crate::emulator::{EmulatorFeature};
-use iso9660::{ISO9660, DirectoryEntry, ISODirectory};
+use iso9660::{DirectoryEntry, ISO9660, ISODirectory};
+use crate::features::EmulatorFeature;
+
 
 pub struct Drive {
     drive_archive: ISO9660<File>,
@@ -163,6 +164,8 @@ impl EmulatorDrive {
 }
 
 impl EmulatorFeature for EmulatorDrive {
+
+
     fn init(&mut self, emulator: &mut UnicornHandle) -> Result<(), String> {
         let mut drive = Drive::new(self.path.as_ref());
         let syscall = move |mut em: UnicornHandle, _syscall: u32| {

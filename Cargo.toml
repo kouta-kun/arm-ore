@@ -25,12 +25,16 @@ env_logger = { version = "0.9", optional = true }
 log = { version = "0.4", optional = true }
 wgpu = { version = "0.12", optional = true }
 pollster = { version = "0.2", optional = true }
+bytemuck = { version = "1.4", features = [ "derive" ], optional = true}
+
+strum = "0.23.0"
+strum_macros = "0.23.0"
 
 [features]
 gpu-feature = []
 
 euc-backend = ["euc", "minifb", "gpu-feature"]
 
-wgpu-backend = ["image", "winit", "cgmath", "env_logger", "log", "wgpu", "pollster", "gpu-feature"]
+wgpu-backend = ["image", "winit", "cgmath", "env_logger", "log", "wgpu", "pollster", "gpu-feature", "bytemuck"]
 
 default = ["wgpu-backend"]

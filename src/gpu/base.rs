@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use unicorn::ffi::uc_hook;
 use unicorn::{RegisterARM, UnicornHandle};
-use crate::EmulatorFeature;
+use crate::features::EmulatorFeature;
 
 pub type Vert = [f32; 8];
 
