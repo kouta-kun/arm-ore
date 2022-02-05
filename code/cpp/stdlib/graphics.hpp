@@ -17,5 +17,5 @@ struct Vertex {
     Vertex(float x, float y, float z, float w, float r, float g, float b, float a);
 };
 
-void submit_drawlist(Vertex *vertexList, size_t vertexCount);
+void submit_drawlist(Vertex *vertexList, size_t vertexCount, uint16_t *indexList, size_t indexCount);
 #endif

@@ -17,6 +17,7 @@ use std::rc::Rc;
 use xmas_elf::dynamic::Tag::Hash;
 use capstone::arch::arm::ArchMode;
 use capstone::arch::BuildsCapstone;
+use crate::{EmulatorFeature, GPUFeature};
 use crate::filesystem::Drive;
 
 pub fn create_emulator() -> Unicorn {
@@ -81,5 +82,32 @@ pub fn print_disassembly(unicorn_handle: &mut UnicornHandle, mem_sz: u64, main_i
     let instructions = capstone.disasm_all(unicorn_handle.mem_read_as_vec(main_idx, (mem_sz - main_idx) as usize).unwrap().as_slice(), pc as u64).unwrap();
     for i in instructions.iter() {
         println!("{:#x}: {} {}", i.address(), i.mnemonic().unwrap(), i.op_str().unwrap());
+    }
+}
+
+pub fn video_update(features: &mut Vec<Box<dyn EmulatorFeature>>, must_loop: &mut bool) {
+    for feat in &mut *features {
+        if feat.name().eq("GPUFeature") {
+            let feat = feat.as_any().downcast_mut::<GPUFeature>().unwrap();
+            let t1 = std::time::Instant::now();
+            feat.update();
+            *must_loop = feat.is_open();
+            let t2 = std::time::Instant::now();
+            let dt = t2.duration_since(t1).as_millis();
+
+            print!("Rendering and update time: {};", dt);
+        }
+    }
+}
+
+pub fn initialize_all_features(mut unicorn_handle: &mut UnicornHandle, features: &mut Vec<Box<dyn EmulatorFeature>>) {
+    for feat in &mut *features {
+        feat.init(&mut unicorn_handle).unwrap();
+    }
+}
+
+pub fn stop_all_features(mut unicorn_handle: &mut UnicornHandle, features: &mut Vec<Box<dyn EmulatorFeature>>) {
+    for mut feat in features {
+        feat.stop(&mut unicorn_handle).unwrap();
     }
 }

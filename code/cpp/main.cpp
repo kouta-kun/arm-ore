@@ -17,6 +17,8 @@ int main() {
 
   size_t frame = 0;
 
+  uint16_t indexes[] = {0,1,2};
+
   while(true) {
       frame++;
 
@@ -24,6 +26,6 @@ int main() {
       triangle[1].g = float(frame%120)/120.0f;
       triangle[2].b = float(frame%120)/120.0f;
 
-      submit_drawlist(triangle, 3);
+      submit_drawlist(triangle, 3, indexes, 3);
   }
 }

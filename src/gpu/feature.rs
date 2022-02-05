@@ -1,6 +1,7 @@
 use std::ptr::null_mut;
 use unicorn::{RegisterARM, UnicornHandle};
 use std::any::Any;
+use std::mem::size_of;
 use unicorn::ffi::uc_hook;
 use crate::features::EmulatorFeature;
 use crate::gpu::base::{GPUBackend, Vert};
@@ -10,16 +11,16 @@ use crate::gpu::base::{GPUBackend, Vert};
 /// This feature provides syscalls to draw 3D graphics on a 800x600 screen
 pub struct GPUFeature {
     hook: uc_hook,
-    backend: Box<dyn GPUBackend>
+    backend: Box<dyn GPUBackend>,
 }
 
 
 impl GPUFeature {
-    pub fn new<Backend: 'static + GPUBackend>(constructor: fn(label: &str,width: usize,height: usize) -> Backend) -> Box<GPUFeature> {
+    pub fn new<Backend: 'static + GPUBackend>(constructor: fn(label: &str, width: usize, height: usize) -> Backend) -> Box<GPUFeature> {
         let backend = Box::new(constructor("ARMchine", 800, 600));
         Box::new(GPUFeature {
             hook: null_mut(),
-            backend
+            backend,
         })
     }
 
@@ -35,7 +36,7 @@ impl GPUFeature {
         let addr = emu.reg_read_i32(RegisterARM::R1 as i32).unwrap();
         let vert_count = emu.reg_read_i32(RegisterARM::R2 as i32).unwrap();
 
-        let vertex = emu.mem_read_as_vec(addr as u64, (vert_count * 8 * 4) as usize).unwrap();
+        let vertex = emu.mem_read_as_vec(addr as u64, (vert_count as usize * size_of::<Vert>()) as usize).unwrap();
         let mut vx = Vec::<Vert>::new();
 
         for i in 0..vert_count {
@@ -51,7 +52,14 @@ impl GPUFeature {
 
         // println!("Vertex count: {}", vx.len());
 
-        (*gpuptr).backend.load_vertices(vx);
+        let index_addr = emu.reg_read_i32(RegisterARM::R3 as i32).unwrap();
+        let index_count = emu.reg_read_i32(RegisterARM::R4 as i32).unwrap() as usize;
+
+        let index = emu.mem_read_as_vec(index_addr as u64, index_count as usize * size_of::<u16>()).unwrap();
+
+        let index: Vec<u16> = (0..index_count).map(|i| u16::from_le_bytes([index[i*2], index[i*2+1]])).collect();
+
+        (*gpuptr).backend.load_vertices(vx, index);
     }
 }
 

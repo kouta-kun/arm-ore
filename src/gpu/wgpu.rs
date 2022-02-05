@@ -19,7 +19,8 @@ pub struct WgpuBackend {
     size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
-    vertex_count: usize,
+    index_buffer: wgpu::Buffer,
+    index_count: usize,
 }
 
 impl WgpuBackend {
@@ -70,7 +71,9 @@ impl WgpuBackend {
 
 
         let vertex_buffer = Self::vertex_to_buffer(&device, &[]);
-        let vertex_count = 0usize;
+
+        let index_buffer = Self::index_to_buffer(&device, &[]);
+        let index_count = 0usize;
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
@@ -134,8 +137,20 @@ impl WgpuBackend {
             size,
             render_pipeline,
             vertex_buffer,
-            vertex_count
+            index_buffer,
+            index_count
         }
+    }
+
+    fn index_to_buffer(device: &Device, indexes: &[u16]) -> Buffer {
+        let index_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Index Buffer"),
+                contents: bytemuck::cast_slice(indexes),
+                usage: wgpu::BufferUsages::INDEX
+            }
+        );
+        index_buffer
     }
 
     fn vertex_to_buffer(device: &Device, vertex: &[Vert]) -> Buffer {
@@ -178,10 +193,11 @@ impl WgpuBackend {
             });
 
 
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_pipeline(&self.render_pipeline);
 
-            render_pass.draw(0..(self.vertex_count as u32), 0..1);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..(self.index_count as u32), 0, 0..1);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -217,10 +233,12 @@ impl GPUBackend for WgpuBackend {
         })
     }
 
-    fn load_vertices(&mut self, vertices: Vec<Vert>) {
+    fn load_vertices(&mut self, vertices: Vec<Vert>, indexes: Vec<u16>) {
         self.vertex_buffer.destroy();
+        self.index_buffer.destroy();
         self.vertex_buffer = Self::vertex_to_buffer(&self.device, vertices.as_slice());
-        self.vertex_count = vertices.len();
+        self.index_buffer = Self::index_to_buffer(&self.device, indexes.as_slice());
+        self.index_count = indexes.len();
     }
 
     fn is_open(&self) -> bool {

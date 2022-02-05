@@ -10,6 +10,6 @@ pub type Vert = [f32; 8];
 
 pub trait GPUBackend {
     fn update(&mut self);
-    fn load_vertices(&mut self, vertices: Vec<Vert>);
+    fn load_vertices(&mut self, vertices: Vec<Vert>, indexes: Vec<u16>);
     fn is_open(&self) -> bool;
 }

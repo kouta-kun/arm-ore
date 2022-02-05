@@ -142,8 +142,9 @@ impl GPUBackend for EucGPUBackend {
     }
 
 
-    fn load_vertices(&mut self, vertices: Vec<Vert>) {
-        self.triangles = Some(vertices);
+    fn load_vertices(&mut self, vertices: Vec<Vert>, indexes: Vec<u16>) {
+        let vert: Vec<Vert> = indexes.iter().map(|i| vertices[*i as usize]).collect();
+        self.triangles = Some(vert);
     }
 
     fn is_open(&self) -> bool {

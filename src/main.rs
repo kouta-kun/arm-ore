@@ -63,9 +63,7 @@ fn main() {
     };
     let mut features = configuration::get_features(&args, mem_sz);
 
-    for feat in &mut features {
-        feat.init(&mut unicorn_handle).unwrap();
-    }
+    emulator::initialize_all_features(&mut unicorn_handle, &mut features);
 
 
     unicorn_handle.add_intr_hook(|mut _emu, _syscall| _emu.emu_stop().unwrap()).unwrap();
@@ -92,18 +90,7 @@ fn main() {
             print!("Execution time: {}; ", dt);
 
             #[cfg(feature = "gpu-feature")] {
-                for feat in &mut features {
-                    if feat.name().eq("GPUFeature") {
-                        let feat = feat.as_any().downcast_mut::<GPUFeature>().unwrap();
-                        let t1 = std::time::Instant::now();
-                        feat.update();
-                        must_loop = feat.is_open();
-                        let t2 = std::time::Instant::now();
-                        let dt = t2.duration_since(t1).as_millis();
-
-                        print!("Rendering and update time: {};", dt);
-                    }
-                }
+                emulator::video_update(&mut features, &mut must_loop)
             }
             print!("\r");
             std::io::stdout().flush().unwrap();
@@ -111,7 +98,5 @@ fn main() {
     }
 
 
-    for mut feat in features {
-        feat.stop(&mut unicorn_handle).unwrap();
-    }
+    emulator::stop_all_features(&mut unicorn_handle, &mut features)
 }

@@ -37,4 +37,4 @@ euc-backend = ["euc", "minifb", "gpu-feature"]
 
 wgpu-backend = ["image", "winit", "cgmath", "env_logger", "log", "wgpu", "pollster", "gpu-feature", "bytemuck"]
 
-default = ["wgpu-backend"]
+default = ["euc-backend", "wgpu-backend"]

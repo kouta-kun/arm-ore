@@ -15,6 +15,6 @@ Vertex::Vertex(float x, float y, float z, float w, float r, float g, float b, fl
         STORE_ATTR(a);
 }
 
-void submit_drawlist(Vertex *vertexList, size_t vertexCount) {
-    SYSCALL(0x160, reinterpret_cast<size_t>(vertexList), vertexCount);
+void submit_drawlist(Vertex *vertexList, size_t vertexCount, uint16_t *indexList, size_t indexCount) {
+    SYSCALL(0x160, reinterpret_cast<size_t>(vertexList), vertexCount, reinterpret_cast<size_t>(indexList), indexCount);
 }

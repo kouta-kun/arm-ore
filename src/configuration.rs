@@ -10,6 +10,9 @@ pub struct Arguments {
 
     #[clap(short, long)]
     pub debug: bool,
+
+    #[clap(long)]
+    pub gpu_backend: Option<String>
 }
 
 pub fn get_features(args: &Arguments, mem_sz: u64) -> Vec<Box<dyn EmulatorFeature>> {
@@ -18,6 +21,6 @@ pub fn get_features(args: &Arguments, mem_sz: u64) -> Vec<Box<dyn EmulatorFeatur
     features.push(Box::new(filesystem::EmulatorDrive::new(String::from(&args.iso))));
     features.push(Box::new(dynmemory::DynamicMemoryAllocations::new(mem_sz)));
     #[cfg(feature = "gpu-feature")]
-        features.push(gpu::create_feature(None));
+        features.push(gpu::create_feature(&args.gpu_backend));
     features
 }
