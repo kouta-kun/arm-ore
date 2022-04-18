@@ -20,6 +20,11 @@ use std::any::Any;
 /// | [crate::dynmemory::DynamicMemoryAllocations] | None | 0x60 → 0x80 |
 /// | [crate::gpu::feature::GPUFeature] | None | 0x160 → 0x180 |
 /// | [crate::console::ConsoleIO] | 0xFF000 → 0x100000 | None |
+///
+/// Syscalls are implemented through the `swi #0` instruction. The syscall number is
+/// taken from the R7 register. Parameters are loaded from the R1 through R6(?) registers, with the
+/// result stored in the R0 register. No standard is defined as of yet for more than 6 parameters.
+/// Structures/objects/things bigger than register size are passed in as pointers.
 pub trait EmulatorFeature {
     fn init(&mut self, emulator: &mut UnicornHandle) -> Result<(), String>;
     fn stop(&mut self, emulator: &mut UnicornHandle) -> Result<(), String>;

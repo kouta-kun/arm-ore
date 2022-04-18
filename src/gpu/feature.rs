@@ -65,7 +65,7 @@ impl GPUFeature {
 
 /// | Syscall | Parameters | Description |
 /// | ------- | ---------- | ----------- |
-/// | 0x160 | Vertex*: address of vertex list to copy | Copies vertices from array into the drawing backend |
+/// | 0x160 | Vertex*: address of vertex list to copy, size_t: vertex count, uint16_t*: address of indexes to copy, size_t: index count | Copies vertices from array into the drawing backend |
 /// | 0x161 | None | Currently does nothing. It's supposed to use as a sort of vsync without having to copy new vertices |
 impl EmulatorFeature for GPUFeature {
     fn init(&mut self, emulator: &mut UnicornHandle) -> Result<(), String> {

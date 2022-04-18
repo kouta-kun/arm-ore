@@ -1,5 +1,5 @@
-use std::detect::__is_feature_detected::sha;
-use wgpu::{Buffer, Device, include_wgsl};
+use std::borrow::Cow;
+use wgpu::{Buffer, Device, include_wgsl, ShaderModule};
 use wgpu::util::DeviceExt;
 use winit::dpi::PhysicalSize;
 use winit::event::{ElementState, Event, KeyboardInput, WindowEvent, VirtualKeyCode};
@@ -62,7 +62,7 @@ impl WgpuBackend {
 
         let size = window.inner_size();
 
-        let shader = device.create_shader_module(&include_wgsl!("shaders/shader.wgsl"));
+        let shader = Self::load_shaders(&device);
         let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
             bind_group_layouts: &[],
@@ -91,11 +91,11 @@ impl WgpuBackend {
                             format: wgpu::VertexFormat::Float32x4,
                         },
                         wgpu::VertexAttribute {
-                            offset: std::mem::size_of::<[f32;4]>() as wgpu::BufferAddress,
+                            offset: std::mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
                             shader_location: 1,
                             format: wgpu::VertexFormat::Float32x4,
                         },
-                    ]
+                    ],
                 }],
             },
             fragment: Some(wgpu::FragmentState {
@@ -138,8 +138,19 @@ impl WgpuBackend {
             render_pipeline,
             vertex_buffer,
             index_buffer,
-            index_count
+            index_count,
         }
+    }
+
+    fn load_shaders(device: &Device) -> ShaderModule {
+        let definitions = include_str!("shaders/definitions.wgsl");
+        let vert = include_str!("shaders/vert.wgsl");
+        let frag = include_str!("shaders/frag.wgsl");
+        let shader_string = [definitions, "\n", vert, "\n", frag].concat();
+        device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+            label: Some("Shader"),
+            source: wgpu::ShaderSource::Wgsl(Cow::from(shader_string)),
+        })
     }
 
     fn index_to_buffer(device: &Device, indexes: &[u16]) -> Buffer {
@@ -147,7 +158,7 @@ impl WgpuBackend {
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Index Buffer"),
                 contents: bytemuck::cast_slice(indexes),
-                usage: wgpu::BufferUsages::INDEX
+                usage: wgpu::BufferUsages::INDEX,
             }
         );
         index_buffer
